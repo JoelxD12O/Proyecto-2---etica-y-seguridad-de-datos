@@ -175,6 +175,8 @@ export function Training({ user }: { user: User }) {
               aria-label="Cliente asignado"
               value={owner}
               onChange={(e) => {
+                // Same client again: keep the loaded profile (the effect would not refetch).
+                if (e.target.value === owner) return;
                 setOwner(e.target.value);
                 setData(null);
                 setMsg("");

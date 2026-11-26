@@ -27,6 +27,8 @@ class Incident(BaseModel):
 def admin_router(engine, actor):
     def admin(user=Depends(actor)):
         if user["role"] != "administrador":
+            with engine.begin() as c:
+                s.record(c, user["id"], "rol.acceso", "denegado")
             raise HTTPException(403, "Acción reservada a administración.")
         return user
 

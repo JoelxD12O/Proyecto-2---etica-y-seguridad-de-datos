@@ -1,7 +1,13 @@
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 const api = new URL(process.env.API_INTERNAL_URL || "http://127.0.0.1:8000");
 if (!["http:", "https:"].includes(api.protocol) || api.username || api.password)
   throw new Error("API_INTERNAL_URL inválida");
+// Pin the root to this folder; a stray lockfile higher up must not be inferred as the workspace.
+const root = dirname(fileURLToPath(import.meta.url));
 export default {
+  turbopack: { root },
+  outputFileTracingRoot: root,
   distDir: process.env.ALZACE_FRONTEND_DIST || ".next",
   poweredByHeader: false,
   devIndicators: false,

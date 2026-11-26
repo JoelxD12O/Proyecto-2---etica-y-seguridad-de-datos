@@ -55,9 +55,9 @@ def read_ring(settings, create=False):
     return ring
 
 
-def pseudo(ring, external):
+def pseudo(ring, external, scope="fitbit"):
     return hmac.new(
-        raw(ring["pseudonym"]), ("fitbit:" + external).encode(), hashlib.sha256
+        raw(ring["pseudonym"]), (scope + ":" + external).encode(), hashlib.sha256
     ).hexdigest()
 
 

@@ -14,6 +14,7 @@ from sqlalchemy import (
     create_engine,
     event,
     insert,
+    inspect,
 )
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -82,6 +83,7 @@ audit = Table(
     C("actor", S(80), nullable=False),
     C("action", S(64), nullable=False),
     C("outcome", S(12), nullable=False),
+    C("target", S(80)),  # owner of the consulted/changed data, if any
 )
 ledger = Table(
     "dp_budget",
@@ -109,9 +111,11 @@ def uid():
     return uuid4().hex
 
 
-def record(c, actor, action, outcome="ok"):
+def record(c, actor, action, outcome="ok", target=None):
     c.execute(
-        insert(audit).values(at=now(), actor=actor, action=action, outcome=outcome)
+        insert(audit).values(
+            at=now(), actor=actor, action=action, outcome=outcome, target=target
+        )
     )
 
 
@@ -156,6 +160,17 @@ def initialize(engine):
             c.execute(CreateSchema("alzace", if_not_exists=True))
             c.exec_driver_sql("REVOKE ALL ON SCHEMA alzace FROM PUBLIC")
         meta.create_all(c)
+        # Idempotent migration for databases created before audit_events.target. Not an UPDATE.
+        if c.dialect.name == "postgresql":
+            # IF NOT EXISTS: two concurrent `cli init` runs do not collide.
+            c.exec_driver_sql(
+                "ALTER TABLE audit_events ADD COLUMN IF NOT EXISTS target VARCHAR(80)"
+            )
+        elif "target" not in {
+            x["name"] for x in inspect(c).get_columns("audit_events")
+        }:
+            # SQLite has no ADD COLUMN IF NOT EXISTS.
+            c.exec_driver_sql("ALTER TABLE audit_events ADD COLUMN target VARCHAR(80)")
         upsert(c, ledger, dict(id=1, spent=0, ceiling=2000), ["id"])
         if c.dialect.name == "sqlite":
             for op in ("UPDATE", "DELETE"):

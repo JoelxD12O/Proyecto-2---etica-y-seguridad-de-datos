@@ -1,11 +1,19 @@
 """Transactions for authorizations, immutable aggregate releases and controlled data use."""
 
+from datetime import datetime
 from sqlalchemy import select, update
 from fastapi import HTTPException
 from . import store as s
 from .privacy import contributions, private_mean, EPSILON, PERIODS
-from .domain import periods, month_bounds
+from .domain import periods, month_bounds, today
 from .vault import decrypt
+
+
+class Refusal(HTTPException):
+    # `reason` is a short, non-sensitive label kept in the audit trail.
+    def __init__(self, status, detail, reason):
+        super().__init__(status, detail)
+        self.reason = reason
 
 
 def check_access(c, actor, owner):
@@ -46,8 +54,18 @@ def describe(row):
 
 
 def release(c, ring, actor, source, month):
+    try:
+        datetime.strptime(month, "%Y-%m")
+    except ValueError:
+        raise Refusal(422, "Periodo no válido.", "periodo no válido")
+    if source == "programa" and month >= today().isoformat()[:7]:
+        raise Refusal(
+            422,
+            "Solo se publican meses cerrados. El mes en curso aún recibe mediciones.",
+            "mes no cerrado",
+        )
     if month not in (PERIODS if source == "estudio" else periods()):
-        raise HTTPException(422, "Periodo no disponible.")
+        raise Refusal(422, "Periodo no disponible.", "periodo no disponible")
     key = f"mean-v1:{source}:{month}"
     # Same lock for *all* roles, queries, releases and processes. Works on SQLite and PostgreSQL.
     c.execute(update(s.ledger).where(s.ledger.c.id == 1).values(spent=s.ledger.c.spent))
@@ -64,9 +82,10 @@ def release(c, ring, actor, source, month):
             select(s.study_sources.c.name).where(s.study_sources.c.name == "fitbit")
         ).first()
     ):
-        raise HTTPException(
+        raise Refusal(
             409,
             "Cargue el archivo del estudio antes de publicar. Puede usar el programa simulado.",
+            "estudio sin cargar",
         )
     if (
         c.execute(
@@ -76,9 +95,10 @@ def release(c, ring, actor, source, month):
         ).rowcount
         != 1
     ):
-        raise HTTPException(
+        raise Refusal(
             409,
             "Se agotó el presupuesto compartido. Las publicaciones existentes siguen disponibles.",
+            "presupuesto agotado",
         )
     lo, hi = month_bounds(month)
     table = s.research if source == "estudio" else s.metrics

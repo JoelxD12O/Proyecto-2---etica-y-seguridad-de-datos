@@ -69,8 +69,10 @@ export type Audit = {
     actor: string;
     action: string;
     outcome: string;
+    target: string | null;
+    target_name: string | null;
   }[];
-  retention: { period: string; retention: number | null };
+  retention: { period: string; retention: number | null; suppressed: boolean };
 };
 export class ApiError extends Error {
   constructor(
