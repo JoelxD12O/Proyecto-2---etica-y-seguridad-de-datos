@@ -4,7 +4,7 @@ from sqlalchemy import select, update
 from fastapi import HTTPException
 from . import store as s
 from .privacy import contributions, private_mean, EPSILON, PERIODS
-from .domain import periods, month_bounds
+from .domain import periods, month_bounds, today
 from .vault import decrypt
 
 
@@ -46,6 +46,11 @@ def describe(row):
 
 
 def release(c, ring, actor, source, month):
+    if source == "programa" and month >= today().isoformat()[:7]:
+        raise HTTPException(
+            422,
+            "Solo se publican meses cerrados. El mes en curso aún recibe mediciones.",
+        )
     if month not in (PERIODS if source == "estudio" else periods()):
         raise HTTPException(422, "Periodo no disponible.")
     key = f"mean-v1:{source}:{month}"

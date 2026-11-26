@@ -2,6 +2,7 @@ from datetime import date, timedelta
 from sqlalchemy import select
 from . import store as s
 from .domain import month_bounds, today
+from .privacy import MIN_NOISY_N
 from .vault import encrypt, decrypt
 
 targets = s.Table(
@@ -113,7 +114,12 @@ def operations(c):
     ).mappings()
     initial = [r for r in cohort if r["end"] is None or r["end"] >= start.isoformat()]
     retained = sum(r["end"] is None or r["end"] >= end.isoformat() for r in initial)
+    # Exact rate over a tiny cohort would reveal who left; same floor as the DP count.
+    small = 0 < len(initial) < MIN_NOISY_N
     return {
         "period": start.isoformat()[:7],
-        "retention": round(retained * 100 / len(initial), 1) if initial else None,
+        "retention": round(retained * 100 / len(initial), 1)
+        if initial and not small
+        else None,
+        "suppressed": small,
     }

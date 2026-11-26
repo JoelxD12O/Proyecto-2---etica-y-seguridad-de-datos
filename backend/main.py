@@ -16,7 +16,7 @@ from .domain import person_view, periods, today, due
 from .privacy import PERIODS
 from .service import check_access, public_user, budget, describe, release
 from .training import save_target, progress, operations
-from .vault import decrypt, encrypt, read_ring
+from .vault import decrypt, encrypt, read_ring, pseudo
 
 
 class Form(BaseModel):
@@ -120,15 +120,21 @@ def create_app(cfg=None):
         with eng.connect() as c:
             return auth.lookup(c, cfg, req.cookies.get(auth.COOKIE))
 
+    def deny(actor_id, action, target=None):
+        # Own transaction: the rejected request rolls back, its audit entry stays.
+        with eng.begin() as c:
+            s.record(c, actor_id, action, "denegado", target)
+
     def require(u, *roles):
         if u["role"] not in roles:
+            deny(u["id"], "rol.acceso")
             raise HTTPException(403, "Acción no permitida para este rol.")
 
     def member(c, u, owner):
         try:
             return check_access(c, u, owner)
         except HTTPException:
-            s.record(c, u["id"], "perfil.acceso", "denegado")
+            s.record(c, u["id"], "perfil.acceso", "denegado", owner)
             c.commit()
             raise
 
@@ -171,9 +177,17 @@ def create_app(cfg=None):
     @app.post("/api/auth/login")
     def signin(form: Login, req: Request, res: Response):
         limiter.check(req.client.host if req.client else "-")
-        with eng.begin() as c:
-            token, u, age = auth.login(c, cfg, form.email.strip(), form.password)
-            s.record(c, u["id"], "sesion.iniciar")
+        email = form.email.strip()
+        try:
+            with eng.begin() as c:
+                token, u, age = auth.login(c, cfg, email, form.password)
+                s.record(c, u["id"], "sesion.iniciar")
+        except HTTPException as e:
+            if e.status_code == 401:
+                # Keyed pseudonym of the attempted email, never the email or password.
+                tried = pseudo(read_ring(cfg), email.lower(), "login")[:16]
+                deny("intento-" + tried, "sesion.iniciar")
+            raise
         session_response(res, token, age)
         return public_user(u)
 
@@ -240,7 +254,7 @@ def create_app(cfg=None):
             ring = read_ring(cfg)
             view = person_view(c, ring, owner)
             view["goal"] = progress(c, ring, owner, view["history"])
-            s.record(c, u["id"], "metricas.consultar")
+            s.record(c, u["id"], "metricas.consultar", target=owner)
             return {"id": owner, "name": p["name"], "source": p["source"], **view}
 
     def save_measurements(owner, forms, user, event):
@@ -278,7 +292,7 @@ def create_app(cfg=None):
                     ["owner", "day"],
                     ["version", "blob"],
                 )
-            s.record(c, user["id"], event)
+            s.record(c, user["id"], event, target=owner)
 
     @app.post("/api/clients/{owner}/metrics", status_code=201)
     def measure(owner: str, form: Metric, u=Depends(actor)):
@@ -333,7 +347,7 @@ def create_app(cfg=None):
                 today().replace(day=1).isoformat(),
                 form.model_dump(),
             )
-            s.record(c, u["id"], "meta.asignar")
+            s.record(c, u["id"], "meta.asignar", target=owner)
         return {"ok": True}
 
     @app.post("/api/clients/{owner}/plans", status_code=201)
@@ -352,7 +366,7 @@ def create_app(cfg=None):
                     alert_at=due(day),
                 )
             )
-            s.record(c, u["id"], "plan.crear")
+            s.record(c, u["id"], "plan.crear", target=owner)
         return {"id": key}
 
     @app.put("/api/plans/{pid}/attendance")
@@ -370,7 +384,7 @@ def create_app(cfg=None):
             )
             if not updated.rowcount:
                 raise HTTPException(403, "Sesión no disponible.")
-            s.record(c, u["id"], "sesion.cumplimiento")
+            s.record(c, u["id"], "sesion.cumplimiento", target=u["id"])
         return {"ok": True}
 
     @app.post("/api/plans/{pid}/respond")
@@ -388,7 +402,7 @@ def create_app(cfg=None):
                 .where(s.plans.c.id == pid, s.plans.c.attended_at.is_(None))
                 .values(attended_at=s.now())
             )
-            s.record(c, u["id"], "alerta.seguimiento")
+            s.record(c, u["id"], "alerta.seguimiento", target=p["owner"])
         return {"ok": True}
 
     @app.get("/api/analytics")
@@ -409,8 +423,12 @@ def create_app(cfg=None):
     @app.post("/api/analytics/publish")
     def publish(form: Publication, u=Depends(actor)):
         require(u, "administrador")
-        with eng.begin() as c:
-            return release(c, read_ring(cfg), u, form.source, form.period)
+        try:
+            with eng.begin() as c:
+                return release(c, read_ring(cfg), u, form.source, form.period)
+        except HTTPException:
+            deny(u["id"], "estadistica.publicar")
+            raise
 
     @app.get("/api/admin/audit")
     def audit(u=Depends(actor)):

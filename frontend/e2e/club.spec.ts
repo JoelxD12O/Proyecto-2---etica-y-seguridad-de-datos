@@ -98,3 +98,74 @@ test("entrenador en pantalla móvil: clientes y alertas", async ({ page }) => {
       fullPage: true,
     });
 });
+test("API: cliente y entrenador no leen fichas ajenas", async ({ page }) => {
+  const read = (owner: string) =>
+    page.evaluate(
+      (o) =>
+        fetch("/api/clients/" + o, {
+          headers: { "x-alzace-request": "web" },
+        }).then((r) => r.status),
+      owner,
+    );
+  await login(page, /^Cliente Mi actividad/);
+  await expect(
+    page.getByRole("heading", { name: "Lucía Valle" }),
+  ).toBeVisible();
+  expect(await read("demo-lucia")).toBe(200);
+  expect(await read("demo-mateo")).toBe(403);
+  await page.getByRole("button", { name: "Cerrar sesión" }).click();
+  await login(page, /^Entrenador Planes/);
+  await expect(
+    page.getByRole("combobox", { name: "Cliente asignado", exact: true }),
+  ).toBeVisible();
+  expect(await read("demo-mateo")).toBe(403);
+});
+test("administración: solo meses cerrados y presupuesto agotado", async ({
+  page,
+}) => {
+  await login(page, /^Administrador Estadísticas/);
+  const source = page.getByRole("combobox", { name: "Fuente", exact: true });
+  const period = page.getByRole("combobox", { name: "Periodo", exact: true });
+  const publish = page.getByRole("button", { name: /Publicar estimación/ });
+  const state = page
+    .getByText("ESTIMACIÓN PUBLICADA", { exact: true })
+    .or(
+      page.getByRole("button", {
+        name: /Publicar estimación|Presupuesto agotado/,
+      }),
+    );
+  // The e2e backend has no study file: rejected without spending ε.
+  await source.selectOption("estudio");
+  for (const month of ["2016-04", "2016-05"]) {
+    await period.selectOption(month);
+    await publish.click();
+    await expect(page.getByText(/Cargue el archivo del estudio/)).toBeVisible();
+  }
+  await source.selectOption("programa");
+  const current = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "America/Lima",
+  })
+    .format(new Date())
+    .slice(0, 7);
+  const months = await period.locator("option").allTextContents();
+  expect(months).toHaveLength(3);
+  expect(months).not.toContain(current);
+  // Budget is shared with earlier tests: publish what is left until ε = 2 is spent.
+  for (const month of months) {
+    await period.selectOption(month);
+    await expect(state).toBeVisible();
+    if (await publish.isVisible()) {
+      await publish.click();
+      await expect(
+        page.getByText("ESTIMACIÓN PUBLICADA", { exact: true }),
+      ).toBeVisible();
+    }
+  }
+  await expect(
+    page.getByRole("button", { name: "Presupuesto agotado" }),
+  ).toBeDisabled();
+  await page.getByRole("button", { name: "Auditoría", exact: true }).click();
+  await expect(
+    page.getByRole("cell", { name: "Denegado" }).first(),
+  ).toBeVisible();
+});

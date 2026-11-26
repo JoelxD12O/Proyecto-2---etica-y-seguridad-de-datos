@@ -4,7 +4,7 @@ import os
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select, update
+from sqlalchemy import create_engine, delete, select, update
 from sqlalchemy.exc import IntegrityError
 from cryptography.exceptions import InvalidTag
 from backend.main import create_app
@@ -16,6 +16,7 @@ from backend.vault import read_ring, decrypt, b64, write_private
 from backend.privacy import contributions, private_mean
 from backend.backup import snapshot, verify
 from backend.dataio import read_activity
+from backend.training import members
 
 H = {"X-Alzace-Request": "web", "Origin": "http://127.0.0.1:3000"}
 
@@ -262,3 +263,73 @@ def test_csv_upload_atomic_and_scoped(site):
         ).status_code
         == 403
     )
+
+
+def test_closed_months_and_audited_rejections(site):
+    cl, eng, _ = site
+    admin = login(cl, "administrador")["id"]
+    current = today().isoformat()[:7]
+
+    def pub(m):
+        return cl.post(
+            "/api/analytics/publish", json={"source": "programa", "period": m}
+        )
+
+    assert current not in cl.get("/api/analytics").json()["periods"]["programa"]
+    r = pub(current)
+    assert r.status_code == 422 and "meses cerrados" in r.json()["detail"]
+    months = periods()
+    assert all(m < current for m in months)
+    assert pub(months[0]).status_code == 200 and pub(months[1]).status_code == 200
+    assert pub(months[2]).status_code == 409
+    assert cl.get("/api/analytics").json()["budget"]["spent"] == 2.0
+    owner = login(cl, "cliente")["id"]
+    assert cl.get("/api/clients/" + owner).status_code == 200
+    assert cl.get("/api/clients/" + DEMO["otro"]).status_code == 403
+    assert cl.get("/api/analytics").status_code == 403
+    bad = {"email": "nadie@demo.invalid", "password": "no-es-la-clave"}
+    assert cl.post("/api/auth/login", json=bad).status_code == 401
+    with eng.connect() as c:
+        rows = [dict(x) for x in c.execute(select(s.audit)).mappings()]
+    seen = [(x["actor"], x["action"], x["outcome"], x["target"]) for x in rows]
+    assert seen.count((admin, "estadistica.publicar", "denegado", None)) == 2
+    assert (owner, "metricas.consultar", "ok", owner) in seen
+    assert (owner, "perfil.acceso", "denegado", DEMO["otro"]) in seen
+    assert (owner, "rol.acceso", "denegado", None) in seen
+    failed = [x for x in rows if x["action"] == "sesion.iniciar"]
+    assert len(failed) == 1 and failed[0]["outcome"] == "denegado"
+    assert failed[0]["actor"].startswith("intento-")
+    assert not any("nadie" in str(v) or "no-es" in str(v) for x in rows for v in x.values())
+
+
+def test_small_cohort_retention_suppressed(site):
+    cl, eng, _ = site
+    login(cl, "administrador")
+    r = cl.get("/api/admin/audit").json()["retention"]
+    assert r["retention"] is not None and not r["suppressed"]
+    with eng.begin() as c:
+        keep = list(c.execute(select(members.c.owner).limit(5)).scalars())
+        c.execute(delete(members).where(members.c.owner.notin_(keep)))
+    r = cl.get("/api/admin/audit").json()["retention"]
+    assert r["retention"] is None and r["suppressed"]
+
+
+def test_audit_target_migration_keeps_existing_rows(tmp_path):
+    eng = create_engine("sqlite:///" + (tmp_path / "old.sqlite3").as_posix())
+    with eng.begin() as c:
+        c.exec_driver_sql(
+            "CREATE TABLE audit_events (id INTEGER PRIMARY KEY, at VARCHAR(32) NOT NULL,"
+            " actor VARCHAR(80) NOT NULL, action VARCHAR(64) NOT NULL, outcome VARCHAR(12) NOT NULL)"
+        )
+        c.exec_driver_sql(
+            "INSERT INTO audit_events (at, actor, action, outcome) VALUES ('t', 'a', 'x', 'ok')"
+        )
+    s.initialize(eng)
+    s.initialize(eng)
+    with eng.begin() as c:
+        s.record(c, "a", "y", target="b")
+    with eng.connect() as c:
+        assert list(c.execute(select(s.audit.c.target)).scalars()) == [None, "b"]
+    with pytest.raises(IntegrityError), eng.begin() as c:
+        c.execute(update(s.audit).values(target="otro"))
+    eng.dispose()

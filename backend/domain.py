@@ -17,7 +17,8 @@ def month_bounds(month):
 
 
 def periods():
-    first = today().replace(day=1)
+    # Closed months only: the current one still receives measurements.
+    first = (today().replace(day=1) - timedelta(days=1)).replace(day=1)
     months = []
     for _ in range(3):
         months.append(first.isoformat()[:7])

@@ -42,6 +42,8 @@ En la demo opcional con contraseña se usa bcrypt con coste 12 y sal individual.
 
 Durante una ventana de mantenimiento, detener las escrituras, respaldar y ejecutar **python -m backend.cli rotate**. En la demo se crea una nueva clave y se vuelven a cifrar los registros en una transacción. En el modo alojado, primero incorporar al secreto una nueva clave de 32 bytes y marcar su versión activa, conservando las antiguas. Luego ejecutar el comando y reiniciar todos los procesos con el mismo llavero. Mantener las versiones históricas hasta que expiren sus respaldos. La clave HMAC conserva el enlace de importación y necesita su propia migración si se sustituye.
 
+**Auditoría.** Cada evento guarda fecha, actor, acción, resultado y, si corresponde, el titular cuyos datos se consultaron o modificaron. Los rechazos (rol no permitido, ficha ajena, publicación rechazada o sin presupuesto, inicio de sesión fallido) se escriben en una transacción propia, de modo que persisten aunque la operación se revierta. Un inicio de sesión fallido se registra con un seudónimo HMAC truncado del correo intentado (**intento-…**), nunca con el correo ni la contraseña. La tabla solo admite inserciones. **backend.cli init** añade la columna del titular a una base existente sin modificar eventos previos; el lanzador de la demo lo ejecuta al iniciar.
+
 ## Recuperación e incidentes
 
 ~~~powershell
