@@ -372,7 +372,7 @@ export function AuditView() {
                     <th>Fecha (UTC)</th>
                     <th>Actor</th>
                     <th>Acción</th>
-                    <th>Titular</th>
+                    <th>Titular / detalle</th>
                     <th>Resultado</th>
                   </tr>
                 </thead>
@@ -382,7 +382,11 @@ export function AuditView() {
                       <td>{r.at.slice(0, 19).replace("T", " ")}</td>
                       <td>{r.actor}</td>
                       <td>{r.action}</td>
-                      <td>{r.target ?? "—"}</td>
+                      <td>
+                        {r.target_name
+                          ? `${r.target_name} (${r.target})`
+                          : (r.target ?? "—")}
+                      </td>
                       <td>{r.outcome === "ok" ? "Correcto" : "Denegado"}</td>
                     </tr>
                   ))}

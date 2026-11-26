@@ -2,9 +2,10 @@ import csv
 import io
 import os
 from contextlib import asynccontextmanager
-from datetime import date, datetime
-from typing import Literal
-from fastapi import FastAPI, Depends, HTTPException, Request, Response
+from datetime import date, datetime, timedelta, timezone
+from typing import Annotated, Literal
+from fastapi import FastAPI, Depends, HTTPException, Path, Request, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ConfigDict, ValidationError
 from sqlalchemy import select, update, delete
@@ -17,6 +18,12 @@ from .privacy import PERIODS
 from .service import check_access, public_user, budget, describe, release
 from .training import save_target, progress, operations
 from .vault import decrypt, encrypt, read_ring, pseudo
+
+
+# Account ids (demo slugs, Auth UUIDs). Bounded: audit.target is VARCHAR(80).
+Owner = Annotated[
+    str, Path(min_length=1, max_length=80, pattern=r"^[A-Za-z0-9_-]+$")
+]
 
 
 class Form(BaseModel):
@@ -97,6 +104,13 @@ def create_app(cfg=None):
     )
     app.state.engine = eng
 
+    @app.exception_handler(RequestValidationError)
+    async def invalid(req, exc):
+        # Generic message; pydantic internals (fields, inputs) are not echoed back.
+        return JSONResponse(
+            {"detail": "Revisa los valores ingresados."}, status_code=422
+        )
+
     @app.middleware("http")
     async def guard(req, call_next):
         if cfg.mode == "demo" and req.url.hostname not in (
@@ -134,7 +148,9 @@ def create_app(cfg=None):
         try:
             return check_access(c, u, owner)
         except HTTPException:
-            s.record(c, u["id"], "perfil.acceso", "denegado", owner)
+            # Only an existing account is named as holder; unknown ids are not stored.
+            known = c.execute(select(s.users.c.id).where(s.users.c.id == owner)).first()
+            s.record(c, u["id"], "perfil.acceso", "denegado", owner if known else None)
             c.commit()
             raise
 
@@ -185,8 +201,22 @@ def create_app(cfg=None):
         except HTTPException as e:
             if e.status_code == 401:
                 # Keyed pseudonym of the attempted email, never the email or password.
-                tried = pseudo(read_ring(cfg), email.lower(), "login")[:16]
-                deny("intento-" + tried, "sesion.iniciar")
+                tried = "intento-" + pseudo(read_ring(cfg), email.lower(), "login")[:16]
+                since = (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat(
+                    timespec="seconds"
+                )
+                # At most one unauthenticated row per pseudonym and minute.
+                with eng.begin() as c:
+                    if not c.execute(
+                        select(s.audit.c.id)
+                        .where(
+                            s.audit.c.actor == tried,
+                            s.audit.c.action == "sesion.iniciar",
+                            s.audit.c.at >= since,
+                        )
+                        .limit(1)
+                    ).first():
+                        s.record(c, tried, "sesion.iniciar", "denegado")
             raise
         session_response(res, token, age)
         return public_user(u)
@@ -243,12 +273,12 @@ def create_app(cfg=None):
                 if u["role"] == "cliente"
                 else stmt.where(s.users.c.trainer == u["id"])
             )
-            return [
-                dict(r) for r in c.execute(stmt.order_by(s.users.c.name)).mappings()
-            ]
+            # Accounts with their own login first, then the rest by name.
+            stmt = stmt.order_by(s.users.c.email.is_(None), s.users.c.name)
+            return [dict(r) for r in c.execute(stmt).mappings()]
 
     @app.get("/api/clients/{owner}")
-    def client(owner: str, u=Depends(actor)):
+    def client(owner: Owner, u=Depends(actor)):
         with eng.begin() as c:
             p = member(c, u, owner)
             ring = read_ring(cfg)
@@ -295,12 +325,12 @@ def create_app(cfg=None):
             s.record(c, user["id"], event, target=owner)
 
     @app.post("/api/clients/{owner}/metrics", status_code=201)
-    def measure(owner: str, form: Metric, u=Depends(actor)):
+    def measure(owner: Owner, form: Metric, u=Depends(actor)):
         save_measurements(owner, [form], u, "metricas.registrar")
         return {"ok": True}
 
     @app.post("/api/clients/{owner}/metrics/import", status_code=201)
-    def import_metrics(owner: str, form: CsvImport, u=Depends(actor)):
+    def import_metrics(owner: Owner, form: CsvImport, u=Depends(actor)):
         reader = csv.DictReader(io.StringIO(form.csv.lstrip("\ufeff")), strict=True)
         forms = []
         days = set()
@@ -336,7 +366,7 @@ def create_app(cfg=None):
         return {"days": len(forms)}
 
     @app.put("/api/clients/{owner}/goal")
-    def goal(owner: str, form: Goal, u=Depends(actor)):
+    def goal(owner: Owner, form: Goal, u=Depends(actor)):
         require(u, "entrenador")
         with eng.begin() as c:
             member(c, u, owner)
@@ -351,7 +381,7 @@ def create_app(cfg=None):
         return {"ok": True}
 
     @app.post("/api/clients/{owner}/plans", status_code=201)
-    def plan(owner: str, form: Plan, u=Depends(actor)):
+    def plan(owner: Owner, form: Plan, u=Depends(actor)):
         require(u, "entrenador")
         with eng.begin() as c:
             member(c, u, owner)
@@ -426,19 +456,26 @@ def create_app(cfg=None):
         try:
             with eng.begin() as c:
                 return release(c, read_ring(cfg), u, form.source, form.period)
-        except HTTPException:
-            deny(u["id"], "estadistica.publicar")
+        except HTTPException as e:
+            # Non-sensitive detail: requested source/period and the refusal reason.
+            reason = getattr(e, "reason", "rechazada")
+            detail = f"{form.source}:{form.period} · {reason}"
+            deny(u["id"], "estadistica.publicar", detail)
             raise
 
     @app.get("/api/admin/audit")
     def audit(u=Depends(actor)):
         require(u, "administrador")
+        holder = s.users.alias("holder")
         with eng.connect() as c:
             return {
                 "events": [
                     dict(r)
                     for r in c.execute(
-                        select(s.audit).order_by(s.audit.c.id.desc()).limit(40)
+                        select(s.audit, holder.c.name.label("target_name"))
+                        .outerjoin(holder, holder.c.id == s.audit.c.target)
+                        .order_by(s.audit.c.id.desc())
+                        .limit(40)
                     ).mappings()
                 ],
                 "retention": operations(c),

@@ -161,8 +161,15 @@ def initialize(engine):
             c.exec_driver_sql("REVOKE ALL ON SCHEMA alzace FROM PUBLIC")
         meta.create_all(c)
         # Idempotent migration for databases created before audit_events.target. Not an UPDATE.
-        columns = {x["name"] for x in inspect(c).get_columns("audit_events")}
-        if "target" not in columns:
+        if c.dialect.name == "postgresql":
+            # IF NOT EXISTS: two concurrent `cli init` runs do not collide.
+            c.exec_driver_sql(
+                "ALTER TABLE audit_events ADD COLUMN IF NOT EXISTS target VARCHAR(80)"
+            )
+        elif "target" not in {
+            x["name"] for x in inspect(c).get_columns("audit_events")
+        }:
+            # SQLite has no ADD COLUMN IF NOT EXISTS.
             c.exec_driver_sql("ALTER TABLE audit_events ADD COLUMN target VARCHAR(80)")
         upsert(c, ledger, dict(id=1, spent=0, ceiling=2000), ["id"])
         if c.dialect.name == "sqlite":

@@ -61,6 +61,7 @@ export function OperationsView() {
     <>
       <div className="page-heading">
         <div>
+          <div className="eyebrow">ADMINISTRACIÓN</div>
           <h1>Operaciones del club</h1>
           <p className="sub">
             Asignaciones de acceso, incidentes y comprobaciones de respaldo.
@@ -133,7 +134,7 @@ export function OperationsView() {
                 Guardar asignación
               </button>
             </form>
-            <details>
+            <details className="spaced">
               <summary>Ver usuarios y roles</summary>
               <ul>
                 {data.accounts.map((a) => (
@@ -162,7 +163,7 @@ export function OperationsView() {
                 </button>
               </form>
               {data.incidents.length === 0 ? (
-                <p>Aún no hay incidentes.</p>
+                <p className="spaced">Aún no hay incidentes.</p>
               ) : (
                 data.incidents.map((i) => (
                   <div className="row" key={i.id}>

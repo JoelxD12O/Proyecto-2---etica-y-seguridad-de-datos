@@ -278,6 +278,13 @@ def test_closed_months_and_audited_rejections(site):
     assert current not in cl.get("/api/analytics").json()["periods"]["programa"]
     r = pub(current)
     assert r.status_code == 422 and "meses cerrados" in r.json()["detail"]
+    future = f"{int(current[:4]) + 1}-01"
+    assert "meses cerrados" in pub(future).json()["detail"]
+    assert pub("2026-13").json() == {"detail": "Periodo no válido."}
+    r = pub("abc")
+    assert r.status_code == 422 and r.json() == {
+        "detail": "Revisa los valores ingresados."
+    }
     months = periods()
     assert all(m < current for m in months)
     assert pub(months[0]).status_code == 200 and pub(months[1]).status_code == 200
@@ -289,17 +296,49 @@ def test_closed_months_and_audited_rejections(site):
     assert cl.get("/api/analytics").status_code == 403
     bad = {"email": "nadie@demo.invalid", "password": "no-es-la-clave"}
     assert cl.post("/api/auth/login", json=bad).status_code == 401
+    assert cl.post("/api/auth/login", json=bad).status_code == 401
     with eng.connect() as c:
         rows = [dict(x) for x in c.execute(select(s.audit)).mappings()]
     seen = [(x["actor"], x["action"], x["outcome"], x["target"]) for x in rows]
-    assert seen.count((admin, "estadistica.publicar", "denegado", None)) == 2
+    denied = [x[3] for x in seen if x[:3] == (admin, "estadistica.publicar", "denegado")]
+    assert denied == [
+        f"programa:{current} · mes no cerrado",
+        f"programa:{future} · mes no cerrado",
+        "programa:2026-13 · periodo no válido",
+        f"programa:{months[2]} · presupuesto agotado",
+    ]
     assert (owner, "metricas.consultar", "ok", owner) in seen
     assert (owner, "perfil.acceso", "denegado", DEMO["otro"]) in seen
     assert (owner, "rol.acceso", "denegado", None) in seen
     failed = [x for x in rows if x["action"] == "sesion.iniciar"]
     assert len(failed) == 1 and failed[0]["outcome"] == "denegado"
-    assert failed[0]["actor"].startswith("intento-")
+    assert failed[0]["actor"].startswith("intento-")  # 2 attempts, 1 row per minute
     assert not any("nadie" in str(v) or "no-es" in str(v) for x in rows for v in x.values())
+
+
+def test_owner_path_bounded_and_unknown_holder_not_stored(site):
+    cl, eng, _ = site
+    owner = login(cl, "cliente")["id"]
+    assert cl.get("/api/clients/" + "x" * 81).status_code == 422
+    assert cl.get("/api/clients/a%20b").status_code == 422
+    r = cl.post("/api/clients/" + "y" * 200 + "/metrics/import", json={"csv": "x"})
+    assert r.json() == {"detail": "Revisa los valores ingresados."}
+    assert cl.get("/api/clients/" + "z" * 80).status_code == 403
+    assert cl.get("/api/clients/" + DEMO["otro"]).status_code == 403
+    with eng.connect() as c:
+        rows = c.execute(
+            select(s.audit.c.target).where(
+                s.audit.c.actor == owner, s.audit.c.action == "perfil.acceso"
+            )
+        ).scalars()
+        assert list(rows) == [None, DEMO["otro"]]
+    login(cl, "administrador")
+    events = cl.get("/api/admin/audit").json()["events"]
+    assert any(
+        e["target"] == DEMO["otro"] and e["target_name"] == "Mateo Rojas" for e in events
+    )
+    login(cl, "entrenador")
+    assert cl.get("/api/clients").json()[0]["id"] == DEMO["cliente"]
 
 
 def test_small_cohort_retention_suppressed(site):

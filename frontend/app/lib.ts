@@ -70,6 +70,7 @@ export type Audit = {
     action: string;
     outcome: string;
     target: string | null;
+    target_name: string | null;
   }[];
   retention: { period: string; retention: number | null; suppressed: boolean };
 };
