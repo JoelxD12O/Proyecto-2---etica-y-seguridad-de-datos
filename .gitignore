@@ -20,3 +20,6 @@ data/processed/
 *.log
 playwright-report/
 test-results/
+
+# Archivos temporales de Office
+~$*
