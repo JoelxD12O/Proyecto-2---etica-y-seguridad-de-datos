@@ -45,77 +45,276 @@
     }
   ],
   "gym": {
-    "task": "Duración de sesión >= 75 minutos; evaluación por fila del archivo Gym",
-    "train": 681,
-    "test": 292,
-    "baseline": {
-      "accuracy": 0.708904109589041,
-      "balanced_accuracy": 0.6942035928143713,
-      "attack_auc": 0.4924089272423712,
-      "attack_advantage": 0.021433025566753083
+    "task": "Sesión de al menos 75 minutos; unidad protegida: fila de entrenamiento",
+    "split": {
+      "train": 510,
+      "validation": 171,
+      "test": 292
     },
-    "baseline_groups": {
-      "Female": {
-        "n": 128,
-        "accuracy": 0.7109375
-      },
-      "Male": {
-        "n": 164,
-        "accuracy": 0.7073170731707317
-      }
+    "selection_rule": "Menor epsilon con pérdida media de accuracy y balanced accuracy <= 0.05 y brecha TPR <= 0.15 en validación",
+    "validation_reference": {
+      "accuracy": 0.6374269005847953,
+      "balanced_accuracy": 0.6392162236229104,
+      "precision": 0.6708860759493671,
+      "recall": 0.5955056179775281,
+      "f1": 0.6309523809523809,
+      "confusion_matrix": [
+        [
+          56,
+          26
+        ],
+        [
+          36,
+          53
+        ]
+      ],
+      "attack_auc": 0.5602224515537209,
+      "attack_advantage": 0.10832473340213283
     },
-    "private": [
+    "validation_candidates": [
       {
+        "accuracy": 0.6472,
+        "balanced_accuracy": 0.6496,
+        "precision": 0.7313,
+        "recall": 0.591,
+        "f1": 0.6234,
+        "attack_auc": 0.5513,
+        "attack_advantage": 0.1065,
+        "accuracy_sd": 0.0215,
+        "confusion_matrix": [
+          [
+            58,
+            24
+          ],
+          [
+            36,
+            53
+          ]
+        ],
+        "groups": {
+          "Female": {
+            "n": 92,
+            "accuracy": 0.6388,
+            "tpr": 0.6049,
+            "fpr": 0.3242
+          },
+          "Male": {
+            "n": 79,
+            "accuracy": 0.657,
+            "tpr": 0.5748,
+            "fpr": 0.2544
+          }
+        },
         "epsilon": 0.1,
-        "accuracy": 0.6737,
-        "balanced_accuracy": 0.6885,
-        "attack_auc": 0.4939,
-        "attack_advantage": 0.0259,
-        "accuracy_sd": 0.0361
+        "tpr_gap": 0.0301,
+        "eligible": true
       },
       {
+        "accuracy": 0.6421,
+        "balanced_accuracy": 0.6424,
+        "precision": 0.6646,
+        "recall": 0.636,
+        "f1": 0.6468,
+        "attack_auc": 0.5587,
+        "attack_advantage": 0.1087,
+        "accuracy_sd": 0.0095,
+        "confusion_matrix": [
+          [
+            53,
+            29
+          ],
+          [
+            32,
+            57
+          ]
+        ],
+        "groups": {
+          "Female": {
+            "n": 92,
+            "accuracy": 0.6152,
+            "tpr": 0.6583,
+            "fpr": 0.4318
+          },
+          "Male": {
+            "n": 79,
+            "accuracy": 0.6734,
+            "tpr": 0.6098,
+            "fpr": 0.2579
+          }
+        },
         "epsilon": 0.5,
-        "accuracy": 0.6833,
-        "balanced_accuracy": 0.6892,
-        "attack_auc": 0.4921,
-        "attack_advantage": 0.0212,
-        "accuracy_sd": 0.0182
+        "tpr_gap": 0.0485,
+        "eligible": true
       },
       {
+        "accuracy": 0.6398,
+        "balanced_accuracy": 0.6408,
+        "precision": 0.6678,
+        "recall": 0.6157,
+        "f1": 0.6389,
+        "attack_auc": 0.5576,
+        "attack_advantage": 0.1086,
+        "accuracy_sd": 0.0071,
+        "confusion_matrix": [
+          [
+            55,
+            27
+          ],
+          [
+            34,
+            55
+          ]
+        ],
+        "groups": {
+          "Female": {
+            "n": 92,
+            "accuracy": 0.612,
+            "tpr": 0.6417,
+            "fpr": 0.4205
+          },
+          "Male": {
+            "n": 79,
+            "accuracy": 0.6722,
+            "tpr": 0.5854,
+            "fpr": 0.2342
+          }
+        },
         "epsilon": 1.0,
-        "accuracy": 0.6838,
-        "balanced_accuracy": 0.6877,
-        "attack_auc": 0.4927,
-        "attack_advantage": 0.0214,
-        "accuracy_sd": 0.0178
+        "tpr_gap": 0.0563,
+        "eligible": true
       },
       {
+        "accuracy": 0.6374,
+        "balanced_accuracy": 0.6392,
+        "precision": 0.6709,
+        "recall": 0.5955,
+        "f1": 0.631,
+        "attack_auc": 0.5587,
+        "attack_advantage": 0.1083,
+        "accuracy_sd": 0.0,
+        "confusion_matrix": [
+          [
+            56,
+            26
+          ],
+          [
+            36,
+            53
+          ]
+        ],
+        "groups": {
+          "Female": {
+            "n": 92,
+            "accuracy": 0.6087,
+            "tpr": 0.625,
+            "fpr": 0.4091
+          },
+          "Male": {
+            "n": 79,
+            "accuracy": 0.6709,
+            "tpr": 0.561,
+            "fpr": 0.2105
+          }
+        },
         "epsilon": 2.0,
-        "accuracy": 0.6838,
-        "balanced_accuracy": 0.6877,
-        "attack_auc": 0.4928,
-        "attack_advantage": 0.0214,
-        "accuracy_sd": 0.0178
+        "tpr_gap": 0.064,
+        "eligible": true
       }
     ],
-    "private_group_accuracy": {
-      "0.1": {
-        "Female": 0.6602,
-        "Male": 0.6843
+    "selected_epsilon": 0.1,
+    "test_baseline": {
+      "accuracy": 0.684931506849315,
+      "balanced_accuracy": 0.680733082706767,
+      "precision": 0.6685393258426966,
+      "recall": 0.7828947368421053,
+      "f1": 0.7212121212121212,
+      "confusion_matrix": [
+        [
+          81,
+          59
+        ],
+        [
+          33,
+          119
+        ]
+      ],
+      "attack_auc": 0.5369345040532657,
+      "attack_advantage": 0.07564419769476793
+    },
+    "test_baseline_groups": {
+      "Female": {
+        "n": 144,
+        "accuracy": 0.6666666666666666,
+        "tpr": 0.7702702702702703,
+        "fpr": 0.44285714285714284,
+        "confusion_matrix": [
+          [
+            39,
+            31
+          ],
+          [
+            17,
+            57
+          ]
+        ]
       },
-      "0.5": {
-        "Female": 0.6776,
-        "Male": 0.6878
-      },
-      "1.0": {
-        "Female": 0.6797,
-        "Male": 0.687
-      },
-      "2.0": {
-        "Female": 0.6797,
-        "Male": 0.687
+      "Male": {
+        "n": 148,
+        "accuracy": 0.7027027027027027,
+        "tpr": 0.7948717948717948,
+        "fpr": 0.4,
+        "confusion_matrix": [
+          [
+            42,
+            28
+          ],
+          [
+            16,
+            62
+          ]
+        ]
       }
     },
-    "repetitions": 30
+    "test_trivial_accuracy": 0.5205479452054794,
+    "test_class_counts": [
+      140,
+      152
+    ],
+    "test_selected": {
+      "accuracy": 0.6621,
+      "balanced_accuracy": 0.6644,
+      "precision": 0.7266,
+      "recall": 0.609,
+      "f1": 0.6419,
+      "attack_auc": 0.5379,
+      "attack_advantage": 0.0738,
+      "accuracy_sd": 0.0208,
+      "confusion_matrix": [
+        [
+          101,
+          39
+        ],
+        [
+          59,
+          93
+        ]
+      ],
+      "groups": {
+        "Female": {
+          "n": 144,
+          "accuracy": 0.6428,
+          "tpr": 0.5905,
+          "fpr": 0.3019
+        },
+        "Male": {
+          "n": 148,
+          "accuracy": 0.6809,
+          "tpr": 0.6265,
+          "fpr": 0.2586
+        }
+      }
+    },
+    "repetitions": 30,
+    "test_history": "El mismo dataset y resultados de prueba de una versión anterior ya fueron observados; evaluación descriptiva, no confirmación independiente."
   }
 }
