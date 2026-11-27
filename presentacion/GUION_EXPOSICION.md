@@ -99,29 +99,119 @@ Recorrido local propuesto: el cliente registra medición y consentimiento; el en
 
 Cierre: Fitbit protege a la persona al publicar una media grupal mediante suma y conteo ruidosos. El error observado responde a un criterio académico y no establece tendencias temporales. En Gym la privacidad del histograma con epsilon fijo se acompaña de una pérdida descriptiva de 2,28 puntos de exactitud y diferencias por grupo que requieren estudio nuevo. La selección y publicación de métricas exactas no heredan automáticamente DP. El riesgo de retroceso del presupuesto al restaurar queda alto; la DPIA permite únicamente la demostración académica, sin aprobación de piloto real. Gracias.
 
-## Demostración en vivo — Joel, diapositiva 17
+## Demostración en vivo — Joel (diapositiva «Demostración: el presupuesto se agota», la 14 de la presentación de 15)
 
-### Preparación
+### Preparación (30 min antes)
 
-1. Usar un estado **local y descartable** de la demo con presupuesto sin gastar. Confirmar que `data/raw/`, `.local/`, bases y llaves no se subieron al repositorio.
-2. En la carpeta del proyecto, activar el entorno Python y levantar el servicio con `./scripts/iniciar.ps1` en PowerShell. Abrir `http://127.0.0.1:3000` y comprobar la salud de la API.
-3. Si la demo local aún no tiene datos, ejecutar `python -m backend.cli init` y `python -m backend.cli import-fitbit data/raw/dailyActivity_merged.csv` con un CSV local autorizado. No reiniciar un estado que deba conservarse.
-4. Preparar los usuarios ficticios: Lucía Valle (cliente de Diego Ríos), Mateo Rojas (cliente de Eva Lira), Diego Ríos (entrenador) y Alex Vega (administrador).
-
-### Recorrido visible
-
-1. **Cliente:** entrar como Lucía, registrar una medición y mostrar que el consentimiento de analítica empieza desactivado, se activa y se puede retirar.
-2. **Entrenador:** entrar como Diego. Mateo no aparece entre sus asignados. Intentar pedir su ficha directamente al servidor; debe responder **403**. Una consulta de ejemplo desde la consola, si la sesión y la ruta de demo siguen disponibles:
+1. Cerrar Docker Desktop, Zoom, Spotify y pestañas que no se usen.
+2. En PowerShell, ir a la carpeta del proyecto:
+   ```powershell
+   cd "C:\Users\Joel\Desktop\2026-2\Etica y seguridad de datos\Proyecto-2---etica-y-seguridad-de-datos"
+   ```
+3. Si el presupuesto no está en 0 de 2, reiniciar el estado local de la demo (es descartable):
+   ```powershell
+   Remove-Item .local\demo.sqlite3
+   $env:ALZACE_MODE="demo"; $env:ALZACE_STATE="$PWD\.local"; $env:DATABASE_URL=""
+   .\.venv\Scripts\python -m backend.cli init
+   .\.venv\Scripts\python -m backend.cli import-fitbit data\raw\dailyActivity_merged.csv
+   ```
+4. Levantar la app y dejar la ventana abierta:
+   ```powershell
+   .\scripts\iniciar.ps1
+   ```
+   Si dice que el puerto 3000 está ocupado, la app ya está corriendo.
+5. Abrir http://127.0.0.1:3000.
+6. F12 → Console → escribir `allow pasting` → Enter → F12 para cerrar.
+7. Tener copiada la consulta:
    ```js
    fetch('/api/clients/demo-mateo',{headers:{'x-alzace-request':'web'}}).then(r=>r.status)
    ```
-3. **Administrador:** entrar como Alex y publicar abril de 2016 con ε = 1. El presupuesto pasa de 0 a 1. La referencia acotada del laboratorio es 34,05 min/día; la salida de la API contiene ruido y puede variar entre instalaciones.
-4. **Repetición:** solicitar abril otra vez. Debe devolverse exactamente el valor guardado, sin gasto adicional.
-5. **Segundo mes:** publicar mayo; el gasto global llega a ε = 2.
-6. **Nueva consulta:** intentar publicar otra combinación aún no publicada. Mostrar el bloqueo por presupuesto y, en la respuesta de la API, **HTTP 409**.
-7. **Auditoría:** abrir los eventos de publicación y denegación. Explicar que el registro no debe incluir contraseñas ni mediciones.
+8. No publicar nada para probar.
 
-Si la interfaz o el servicio fallan, explicar el resultado esperado desde las pruebas y el informe. No presentar capturas antiguas ni afirmar que se ejecutó un paso que no pudo mostrarse.
+**Usuarios ficticios**
+
+| Usuario | Rol | Detalle |
+|---|---|---|
+| Lucía Valle | Clienta | Asignada al entrenador Diego Ríos |
+| Mateo Rojas | Cliente | Asignado a la entrenadora Eva Lira |
+| Diego Ríos | Entrenador | Solo ve a sus clientes asignados |
+| Alex Vega | Administrador | Publica estadísticas y ve la auditoría |
+
+### Guion
+
+**Inicio**
+Gracias, Josué. Ahora lo vemos funcionando en la app. Tiene tres roles, cliente, entrenador y administrador, y cada uno ve solo lo que necesita. Usamos usuarios ficticios. Lucía y Mateo son clientes, Diego es entrenador y Alex es el administrador.
+*(Alt+Tab al navegador)*
+
+**Rol 1 – Cliente (Lucía)**
+*(«Cliente» → «Entrar al panel»)*
+Primero entro como Lucía, que es una clienta. Ella tiene dos módulos, Mi actividad y Mi privacidad.
+*(Muestra el resumen)*
+En Mi actividad ve su ritmo de actividad, su meta y el plan que le dio su entrenador. Solo sus datos, de nadie más.
+*(«Registrar medición» → 47 minutos, 4321 pasos → «Guardar»)*
+Registro una medición. En la base de datos no queda en texto claro, se cifra con AES-256-GCM y queda amarrada a Lucía y a ese día.
+*(«Mi privacidad» → «Permitir uso grupal» → «Retirar permiso»)*
+En Mi privacidad, Lucía decide si su actividad cuenta para las estadísticas del club. Es aparte del servicio y empieza apagado. Lo puede activar y retirar igual de fácil, y si no acepta, su entrenador la sigue atendiendo. Lo que ya se publicó no se revierte, y la pantalla lo explica.
+*(«Cerrar sesión»)*
+
+**Rol 2 – Entrenador (Diego)**
+*(«Entrenador» → «Entrar al panel»)*
+Ahora entro como Diego, que es entrenador. Tiene tres módulos, Mis clientes, Seguimiento y Estadísticas.
+*(Abre el selector «Cliente asignado»)*
+En Mis clientes solo aparecen los clientes que tiene asignados. Mateo no está, porque es cliente de otra entrenadora.
+*(Elige «Lucía Valle»)*
+Diego sí ve los datos de Lucía, porque los necesita para entrenarla, y desde aquí le asigna sesiones y metas.
+Pero ocultar a Mateo en la pantalla no basta. Voy a pedir su ficha directo al servidor, como haría alguien que intenta saltarse la interfaz.
+*(F12 → Console → pega la consulta → Enter)*
+*(Aparece 403)*
+El servidor responde 403, acceso denegado. El permiso se revisa en cada petición, no solo en la pantalla. Esto es lo que mitiga el riesgo R1 de la DPIA, el acceso cruzado.
+*(F12 para cerrar → «Seguimiento»)*
+En Seguimiento ve las sesiones que sus clientes no marcaron como hechas. Medimos la adherencia por sesiones cumplidas y no por días sin reloj, porque un día sin reloj no significa que la persona no entrenó.
+*(«Cerrar sesión»)*
+
+**Rol 3 – Administrador (Alex)**
+*(«Administrador» → «Entrar al panel» → «Estadísticas»)*
+Por último entro como Alex, el administrador. Piénsenlo como el gerente del gimnasio. No entrena a nadie, así que no ve los datos de ningún cliente, solo cómo va el grupo en general. Tiene tres módulos, Estadísticas, Auditoría y Operaciones.
+
+En Estadísticas el club publica el promedio de minutos activos al día del grupo. Para abril de 2016 este promedio junta a las 33 personas del estudio Fitbit.
+El problema es que un número exacto puede delatar a alguien. Por ejemplo, si comparo el promedio con una persona y sin ella, la resta me dice cuánto entrenó. Por eso usamos privacidad diferencial. Al número real le sumamos un poco de ruido al azar.
+
+*(Señala el cuadro de arriba, «0 / 2 ε»)*
+Aquí arriba está el presupuesto de privacidad. ε mide cuánta privacidad gasta cada publicación. Con ε chico hay más ruido y más privacidad, y con ε grande, menos ruido y menos privacidad. Para Fitbit elegimos ε igual a 1, que deja un error de unos 4 a 5 minutos sobre una media de unos 34. Cada publicación nueva suma 1, y el límite es 2.
+
+*(Fuente «Estudio Fitbit», Periodo «2016-04» → «Publicar estimación · ε = 1»)*
+Publico abril. La referencia sin ruido es 34,05 minutos y la app publica un número cercano, pero no el exacto. Sirve para estimar la media del grupo, pero ya no se puede saber si una persona concreta estaba o no. El contador sube a 1 de 2.
+
+*(F5 → «Estudio Fitbit», «2016-04»)*
+Si vuelvo a pedir el mismo mes, me da exactamente el número guardado y el contador no sube. Si recalculara cada vez, alguien podría pedirlo muchas veces, promediar los resultados y quitar el ruido.
+
+*(Periodo «2016-05» → «Publicar estimación · ε = 1»)*
+Ahora publico mayo y el contador llega a 2 de 2.
+*(Fuente «Programa de entrenamiento»)*
+El botón dice Presupuesto agotado. Ya no se puede publicar nada más, y si alguien se salta la pantalla, el servidor responde 409.
+Hay un límite porque cada publicación filtra un poco de información y eso se acumula. Si se pudiera publicar infinitas veces, alguien juntaría los resultados y llegaría al dato real. En la demo el límite es fijo, 2 en total.
+
+*(«Auditoría»)*
+En Auditoría queda registrado lo que pasa en el sistema. Aquí están las dos publicaciones, y aquí el intento de Diego de ver a Mateo, marcado como Denegado. El registro es de solo inserción, no se puede modificar, y no guarda mediciones ni contraseñas, solo quién hizo qué y cuándo.
+
+*(«Operaciones»)*
+Y en Operaciones el administrador asigna qué entrenador atiende a qué cliente, que es lo que decide quién puede ver a quién. También registra incidentes de seguridad y gestiona las copias de seguridad cifradas.
+
+**Cierre**
+*(Alt+Tab al PowerPoint → Conclusiones)*
+Eso es la demo. Cada rol ve solo lo que necesita, los datos de cada persona están cifrados y protegidos por permisos, y lo que se publica del grupo lleva ruido con un presupuesto limitado. Es una demostración académica local, no un piloto con clientes reales. Josué cierra con las conclusiones.
+
+**Si algo falla:** explicar el resultado esperado según las pruebas y el informe. No presentar capturas antiguas ni afirmar que se ejecutó un paso que no pudo mostrarse.
+
+### Preguntas que responde Joel
+
+- **¿Por qué no publicar el número exacto?** Porque con números exactos se puede deducir a una persona, por ejemplo comparando el promedio con ella y sin ella. El ruido hace que el resultado sea casi igual esté o no esté.
+- **¿A cuántas personas promedian?** A las 33 del estudio Fitbit en abril de 2016. Cada persona cuenta una vez, con su propio promedio acotado a 0–120 minutos.
+- **¿Por qué solo 2?** Cada publicación filtra un poco y eso se suma. Con 2 cubrimos abril y mayo, los meses del estudio, y lo que se puede saber de cualquier persona queda acotado.
+- **¿Son 2 por año?** En la demo son 2 en total. Renovarlo por periodo sería una decisión de producción y la privacidad perdida se acumularía; no está implementado.
+- **¿Cómo evitan que alguien vea datos de otro?** El servidor revisa el rol y el titular de cada dato en cada petición. Lo vieron con el 403 de Mateo.
+- **¿Dónde se cifran los datos?** Cada medición se cifra con AES-256-GCM antes de guardarse, con datos asociados que la amarran a su tabla, titular, fecha y versión de clave.
+
 
 ## Preguntas probables
 
