@@ -67,56 +67,109 @@ Volviendo al enunciado, cubrimos los requerimientos dentro del alcance de una de
 
 ## JOEL – Demo en vivo (diapositiva 13)
 
-**Al empezar (con la diapositiva 13 en pantalla)**
-Gracias, Josué. Ahora lo vemos en la app real, en cuatro pasos, cliente, entrenador, administrador y auditoría.
-*(Alt+Tab al navegador en http://127.0.0.1:3000)*
+### A. Antes de la exposición (30 min antes)
+
+1. Cierra Docker Desktop, Zoom, Spotify y pestañas que no uses (la app necesita memoria).
+2. Abre PowerShell y ve a la carpeta del proyecto:
+   ```powershell
+   cd "C:\Users\Joel\Desktop\2026-2\Etica y seguridad de datos\Proyecto-2---etica-y-seguridad-de-datos"
+   ```
+3. Reinicia la base para que el presupuesto quede en 0 de 2 (solo si ya publicaste algo):
+   ```powershell
+   Remove-Item .local\demo.sqlite3
+   $env:ALZACE_MODE="demo"; $env:ALZACE_STATE="$PWD\.local"; $env:DATABASE_URL=""
+   .\.venv\Scripts\python -m backend.cli init
+   .\.venv\Scripts\python -m backend.cli import-fitbit data\raw\dailyActivity_merged.csv
+   ```
+4. Levanta la app y deja esa ventana abierta (Ctrl+C la apaga):
+   ```powershell
+   .\scripts\iniciar.ps1
+   ```
+   Si dice que el puerto 3000 está ocupado, la app ya está corriendo: solo abre el navegador.
+5. Abre http://127.0.0.1:3000 en el navegador.
+6. Prepara la consola: F12 → pestaña Console. La primera vez Chrome/Brave no deja pegar código, escribe `allow pasting` y Enter. Cierra con F12.
+7. Ten copiada esta consulta (pide la ficha de Mateo directo al servidor):
+   ```js
+   fetch('/api/clients/demo-mateo',{headers:{'x-alzace-request':'web'}}).then(r=>r.status)
+   ```
+8. No publiques abril ni mayo para probar, gasta el presupuesto.
+
+**Usuarios de la demo**
+
+| Usuario | Rol | Detalle |
+|---|---|---|
+| Lucía Valle | Clienta | Asignada al entrenador Diego |
+| Mateo Rojas | Cliente | Asignado a otra entrenadora (Eva Lira) |
+| Diego Ríos | Entrenador | Solo ve a sus clientes |
+| Alex Vega | Administrador | Publica estadísticas y ve la auditoría |
+
+### B. Lo que dices y haces
+
+**Inicio (diapositiva 13 en pantalla)**
+Gracias, Josué. Ahora lo vemos en la app real, en cuatro pasos, cliente, entrenador, administrador y auditoría. La app tiene usuarios de prueba. Lucía y Mateo son clientes, Diego es entrenador y Alex es el administrador.
+*(Alt+Tab al navegador)*
 
 **Paso 1 – Cliente**
-*(Elegir «Cliente» → «Entrar al panel»)*
+*(Elige «Cliente» → «Entrar al panel»)*
 Entro como Lucía, que es una clienta. Ella solo ve su propia actividad.
-*(«Registrar medición» → 47 minutos, 4321 pasos → «Guardar»)*
+*(«Registrar medición» → 47 en minutos, 4321 en pasos → «Guardar»)*
 Registro una medición. En la base de datos esto no queda en claro, queda cifrado con AES-256-GCM y amarrado a Lucía y a ese día.
-*(Ir a «Mi privacidad» → «Permitir uso grupal», luego «Retirar permiso»)*
-Aquí está el consentimiento. Es aparte del servicio, empieza apagado, lo activo y lo puedo retirar igual de fácil. Si Lucía no acepta, su entrenador la sigue atendiendo, solo que no entra a las estadísticas.
+*(«Mi privacidad» → «Permitir uso grupal» → luego «Retirar permiso»)*
+Aquí está el consentimiento. Es aparte del servicio y empieza apagado. Lo activo y lo puedo retirar igual de fácil. Si Lucía no acepta, su entrenador la sigue atendiendo, solo que ella no entra a las estadísticas.
 *(«Cerrar sesión»)*
 
-**Paso 2 – Entrenador**
-*(Elegir «Entrenador» → «Entrar al panel» → abrir el selector de clientes)*
-Ahora entro como entrenador. En la lista solo aparecen sus clientes asignados. Mateo no está, porque es de otra entrenadora.
-*(F12 → Consola → pegar la consulta y Enter)*
-Si intento pedir la ficha de Mateo directo a la API, aunque me salte la pantalla…
-*(muestra 403)*
-…el servidor responde 403. La autorización se revisa en cada petición, eso es lo que mitiga el riesgo R1 de la DPIA.
-*(Cerrar la consola → «Cerrar sesión»)*
-
-**Paso 3 – Administrador y privacidad diferencial**
-*(Elegir «Administrador» → «Entrar al panel» → Estadísticas)*
-Entro como administrador. Arriba está el presupuesto de privacidad, en 0 de 2.
-*(Fuente «Estudio Fitbit», periodo 2016-04 → «Publicar estimación»)*
-Publico abril de 2016. El valor sin ruido es 34,05 minutos y la app publica una cifra cercana, pero no exacta. Ese ruido es el que impide saber si una persona estaba o no en el grupo. El presupuesto sube a 1 de 2.
-*(Recargar la página, volver a elegir 2016-04)*
-Si vuelvo a pedir el mismo mes, sale exactamente el mismo número y el presupuesto sigue en 1. Si se recalculara, alguien podría pedirlo muchas veces y promediar el ruido.
-*(Periodo 2016-05 → «Publicar estimación»)*
-Ahora publico mayo. El presupuesto llega a 2 de 2 y el botón queda en «Presupuesto agotado». Ya no se puede publicar nada nuevo, ni siquiera saltándose la pantalla, porque el servidor también lo bloquea.
-
-**Paso 4 – Auditoría**
-*(Ir a «Auditoría»)*
-Por último, la auditoría. Aquí están las dos publicaciones y también los accesos denegados de hace un momento, el del entrenador pidiendo a Mateo, con el titular y el motivo. No guarda mediciones ni contraseñas, y la tabla no se puede modificar.
-
-**Para cerrar**
-*(Alt+Tab al PowerPoint, avanzar a la diapositiva 16)*
-Eso es la demo. Josué cierra con las conclusiones.
-
-**Si algo falla**
-Tranquilo, pasar a la diapositiva 14 y decir:
-Tenemos capturas de la app real por si acaso. Aquí se ve el 403 al pedir la ficha de otro cliente y que republicar el mismo mes devuelve el resultado guardado sin gastar presupuesto.
-*(diapositiva 15)*
-Y aquí el rechazo cuando el presupuesto ya está agotado, y la auditoría con los accesos denegados.
-
-**Consulta para la consola (tenerla copiada)**
+**Paso 2 – Entrenador y acceso a datos ajenos**
+*(Elige «Entrenador» → «Entrar al panel»)*
+Ahora entro como Diego, que es entrenador. Mateo Rojas es cliente de otra entrenadora, así que no debería poder ver sus datos.
+*(Abre el selector «Cliente asignado»)*
+En la lista solo aparecen sus clientes. Mateo no está.
+Pero ocultarlo en la pantalla no basta. Voy a pedir la ficha de Mateo directo al servidor, como haría un atacante que se salta la interfaz.
+*(F12 → Console → pega la consulta → Enter)*
 ```js
 fetch('/api/clients/demo-mateo',{headers:{'x-alzace-request':'web'}}).then(r=>r.status)
 ```
+*(Aparece `403`)*
+El servidor responde 403, acceso denegado. La autorización se revisa en cada petición, y eso mitiga el riesgo R1 de la DPIA.
+*(F12 para cerrar la consola → «Cerrar sesión»)*
+
+**Paso 3 – Administrador y privacidad diferencial**
+*(Elige «Administrador» → «Entrar al panel» → «Estadísticas»)*
+Entro como Alex, el administrador. Arriba está el presupuesto de privacidad, en 0 de 2.
+*(Fuente «Estudio Fitbit», Periodo «2016-04» → «Publicar estimación · ε = 1»)*
+Publico abril de 2016. El valor real sin ruido es 34,05 minutos, y la app publica una cifra cercana pero no exacta. Ese ruido es el que impide saber si una persona estaba o no en el grupo. El presupuesto sube a 1 de 2.
+*(F5 para recargar → Fuente «Estudio Fitbit», Periodo «2016-04»)*
+Si vuelvo a pedir el mismo mes, sale exactamente el mismo número y el presupuesto sigue en 1. Si se recalculara, alguien podría pedirlo muchas veces y promediar el ruido.
+*(Periodo «2016-05» → «Publicar estimación · ε = 1»)*
+Ahora publico mayo. El presupuesto llega a 2 de 2.
+*(Elige otro periodo sin publicar, por ejemplo Fuente «Programa de entrenamiento» → el botón dice «Presupuesto agotado»)*
+El botón queda en «Presupuesto agotado». Ya no se puede publicar nada nuevo, y el servidor también lo bloquea aunque alguien se salte la pantalla.
+
+**Paso 4 – Auditoría**
+*(«Auditoría»)*
+Por último, la auditoría. Aquí están las dos publicaciones, y también el intento de Diego de ver a Mateo, marcado como Denegado, con el titular. No guarda mediciones ni contraseñas, y la tabla no se puede modificar.
+
+**Cierre**
+*(Alt+Tab al PowerPoint → avanza a la diapositiva 16)*
+Eso es la demo. Josué cierra con las conclusiones.
+
+### C. Si algo falla
+
+*(Pasa a la diapositiva 14)*
+Tenemos capturas de la app real por si acaso. Aquí se ve el 403 al pedir la ficha de otro cliente, y que republicar el mismo mes devuelve el resultado guardado sin gastar presupuesto.
+*(Diapositiva 15)*
+Y aquí el rechazo cuando el presupuesto ya está agotado, y la auditoría con los accesos denegados.
+
+Si la app no carga, en PowerShell (carpeta del proyecto):
+```powershell
+.\scripts\iniciar.ps1
+```
+
+### D. Preguntas que responde Joel
+
+- **¿Cómo evitan que alguien vea datos de otro?** La API revisa el rol y el dueño de cada registro en cada petición, no solo la pantalla. Lo vieron con el 403 de Mateo.
+- **¿Dónde están cifrados los datos?** Cada medición se cifra con AES-256-GCM antes de guardarse, amarrada a su dueño y a su día. Si alguien copia la fila a otra persona, no se puede descifrar.
+- **¿Por qué el número publicado no es el real?** Es a propósito. El ruido de Laplace hace que no se pueda saber si una persona estaba en el grupo, y con ε = 1 el error típico es de unos 5 minutos.
+- **¿Qué pasa cuando se agota el presupuesto?** No se publica nada nuevo, pero lo ya publicado sigue disponible y consultarlo no cuesta nada.
 
 ---
 
