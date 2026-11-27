@@ -99,7 +99,9 @@ Recorrido local propuesto: el cliente registra medición y consentimiento; el en
 
 Cierre: Fitbit protege a la persona al publicar una media grupal mediante suma y conteo ruidosos. El error observado responde a un criterio académico y no establece tendencias temporales. En Gym la privacidad del histograma con epsilon fijo se acompaña de una pérdida descriptiva de 2,28 puntos de exactitud y diferencias por grupo que requieren estudio nuevo. La selección y publicación de métricas exactas no heredan automáticamente DP. El riesgo de retroceso del presupuesto al restaurar queda alto; la DPIA permite únicamente la demostración académica, sin aprobación de piloto real. Gracias.
 
-## Demostración en vivo — Joel (diapositiva «Demostración: el presupuesto se agota», la 14 de la presentación de 15)
+## Demostración en vivo — Joel (diapositiva 14, unos 4 minutos)
+
+La diapositiva 14 tiene siete pasos. El guion sigue ese orden.
 
 ### Preparación (30 min antes)
 
@@ -137,80 +139,75 @@ Cierre: Fitbit protege a la persona al publicar una media grupal mediante suma y
 | Diego Ríos | Entrenador | Solo ve a sus clientes asignados |
 | Alex Vega | Administrador | Publica estadísticas y ve la auditoría |
 
+**Valores para la medición de Lucía**: minutos 47, pasos 4321, pulso 72, peso 62, grasa 24.
+
 ### Guion
 
-**Inicio**
-Gracias, Josué. Ahora lo vemos funcionando en la app. Tiene tres roles, cliente, entrenador y administrador, y cada uno ve solo lo que necesita. Usamos usuarios ficticios. Lucía y Mateo son clientes, Diego es entrenador y Alex es el administrador.
+**Inicio (diapositiva 14 en pantalla)**
+Gracias, Josué. Ahora lo vemos funcionando en la app, en los siete pasos de la diapositiva. La app tiene tres roles, cliente, entrenador y administrador, y cada uno ve solo lo que necesita. Usamos usuarios ficticios. Lucía y Mateo son clientes, Diego es entrenador y Alex es el administrador.
 *(Alt+Tab al navegador)*
 
-**Rol 1 – Cliente (Lucía)**
+**Paso 1 – Cliente: medición y consentimiento**
 *(«Cliente» → «Entrar al panel»)*
-Primero entro como Lucía, que es una clienta. Ella tiene dos módulos, Mi actividad y Mi privacidad.
-*(Muestra el resumen)*
-En Mi actividad ve su ritmo de actividad, su meta y el plan que le dio su entrenador. Solo sus datos, de nadie más.
-*(«Registrar medición» → 47 minutos, 4321 pasos → «Guardar»)*
-Registro una medición. En la base de datos no queda en texto claro, se cifra con AES-256-GCM y queda amarrada a Lucía y a ese día.
+Primero entro como Lucía, que es una clienta. Tiene dos módulos, Mi actividad y Mi privacidad. En Mi actividad ve su ritmo de actividad, su meta y el plan que le dio su entrenador. Solo sus datos.
+*(«Registrar medición» → minutos 47, pasos 4321, pulso 72, peso 62, grasa 24 → «Guardar»)*
+Lucía registra su medición del día, minutos activos y pasos, y también pulso, peso y grasa corporal, que son datos de salud y por eso sensibles según la Ley 29733. Al guardar, todo se cifra con AES-256-GCM en un solo bloque amarrado a Lucía y a esta fecha. En la base de datos no queda ningún número en claro.
 *(«Mi privacidad» → «Permitir uso grupal» → «Retirar permiso»)*
 En Mi privacidad, Lucía decide si su actividad cuenta para las estadísticas del club. Es aparte del servicio y empieza apagado. Lo puede activar y retirar igual de fácil, y si no acepta, su entrenador la sigue atendiendo. Lo que ya se publicó no se revierte, y la pantalla lo explica.
 *(«Cerrar sesión»)*
 
-**Rol 2 – Entrenador (Diego)**
-*(«Entrenador» → «Entrar al panel»)*
-Ahora entro como Diego, que es entrenador. Tiene tres módulos, Mis clientes, Seguimiento y Estadísticas.
-*(Abre el selector «Cliente asignado»)*
-En Mis clientes solo aparecen los clientes que tiene asignados. Mateo no está, porque es cliente de otra entrenadora.
-*(Elige «Lucía Valle»)*
+**Paso 2 – Entrenador: solo sus clientes, 403 con uno ajeno**
+*(«Entrenador» → «Entrar al panel» → abrir «Cliente asignado»)*
+Ahora entro como Diego, que es entrenador. En Mis clientes solo aparecen sus clientes asignados. Mateo no está, porque es cliente de otra entrenadora.
+*(Elegir «Lucía Valle»)*
 Diego sí ve los datos de Lucía, porque los necesita para entrenarla, y desde aquí le asigna sesiones y metas.
 Pero ocultar a Mateo en la pantalla no basta. Voy a pedir su ficha directo al servidor, como haría alguien que intenta saltarse la interfaz.
-*(F12 → Console → pega la consulta → Enter)*
-*(Aparece 403)*
-El servidor responde 403, acceso denegado. El permiso se revisa en cada petición, no solo en la pantalla. Esto es lo que mitiga el riesgo R1 de la DPIA, el acceso cruzado.
-*(F12 para cerrar → «Seguimiento»)*
-En Seguimiento ve las sesiones que sus clientes no marcaron como hechas. Medimos la adherencia por sesiones cumplidas y no por días sin reloj, porque un día sin reloj no significa que la persona no entrenó.
-*(«Cerrar sesión»)*
+*(F12 → Console → pegar la consulta → Enter → aparece 403)*
+El servidor responde 403, acceso denegado. El permiso se revisa en cada petición, no solo en la pantalla. Esto mitiga el riesgo R1 de la DPIA, el acceso cruzado.
+*(F12 para cerrar → «Cerrar sesión»)*
 
-**Rol 3 – Administrador (Alex)**
+**Paso 3 – Administrador: publica abril**
 *(«Administrador» → «Entrar al panel» → «Estadísticas»)*
-Por último entro como Alex, el administrador. Piénsenlo como el gerente del gimnasio. No entrena a nadie, así que no ve los datos de ningún cliente, solo cómo va el grupo en general. Tiene tres módulos, Estadísticas, Auditoría y Operaciones.
+Por último entro como Alex, el administrador. Piénsenlo como el gerente del gimnasio. No entrena a nadie, así que no ve los datos de ningún cliente, solo cómo va el grupo.
+Aquí el club publica el promedio de minutos activos al día del grupo. Para abril de 2016 junta a las 33 personas del estudio Fitbit. El problema es que un número exacto puede delatar a alguien. Si comparo el promedio con una persona y sin ella, la resta me dice cuánto entrenó. Por eso usamos privacidad diferencial, que le suma un poco de ruido al azar al número real.
+*(Señalar «0 / 2 ε»)*
+Arriba está el presupuesto de privacidad. ε mide cuánta privacidad gasta cada publicación. Con ε chico hay más ruido y más privacidad, y con ε grande, menos ruido y menos privacidad. Para Fitbit elegimos ε igual a 1, que deja un error de unos 4 a 5 minutos sobre una media de unos 34. Cada publicación nueva suma 1 y el límite es 2.
+*(«Estudio Fitbit», «2016-04» → «Publicar estimación · ε = 1»)*
+Publico abril. La referencia sin ruido es 34,05 minutos y la app publica un número cercano, pero no el exacto. Sirve para estimar la media del grupo, pero ya no se puede saber si una persona concreta estaba o no. El gasto sube a 1 de 2.
 
-En Estadísticas el club publica el promedio de minutos activos al día del grupo. Para abril de 2016 este promedio junta a las 33 personas del estudio Fitbit.
-El problema es que un número exacto puede delatar a alguien. Por ejemplo, si comparo el promedio con una persona y sin ella, la resta me dice cuánto entrenó. Por eso usamos privacidad diferencial. Al número real le sumamos un poco de ruido al azar.
-
-*(Señala el cuadro de arriba, «0 / 2 ε»)*
-Aquí arriba está el presupuesto de privacidad. ε mide cuánta privacidad gasta cada publicación. Con ε chico hay más ruido y más privacidad, y con ε grande, menos ruido y menos privacidad. Para Fitbit elegimos ε igual a 1, que deja un error de unos 4 a 5 minutos sobre una media de unos 34. Cada publicación nueva suma 1, y el límite es 2.
-
-*(Fuente «Estudio Fitbit», Periodo «2016-04» → «Publicar estimación · ε = 1»)*
-Publico abril. La referencia sin ruido es 34,05 minutos y la app publica un número cercano, pero no el exacto. Sirve para estimar la media del grupo, pero ya no se puede saber si una persona concreta estaba o no. El contador sube a 1 de 2.
-
+**Paso 4 – Repetición: misma respuesta, sin gasto**
 *(F5 → «Estudio Fitbit», «2016-04»)*
-Si vuelvo a pedir el mismo mes, me da exactamente el número guardado y el contador no sube. Si recalculara cada vez, alguien podría pedirlo muchas veces, promediar los resultados y quitar el ruido.
+Si vuelvo a pedir abril, me da exactamente el número guardado y el gasto sigue en 1. Si recalculara cada vez, alguien podría pedirlo muchas veces, promediar los resultados y quitar el ruido.
 
-*(Periodo «2016-05» → «Publicar estimación · ε = 1»)*
-Ahora publico mayo y el contador llega a 2 de 2.
-*(Fuente «Programa de entrenamiento»)*
-El botón dice Presupuesto agotado. Ya no se puede publicar nada más, y si alguien se salta la pantalla, el servidor responde 409.
-Hay un límite porque cada publicación filtra un poco de información y eso se acumula. Si se pudiera publicar infinitas veces, alguien juntaría los resultados y llegaría al dato real. En la demo el límite es fijo, 2 en total.
+**Paso 5 – Segundo mes: gasto 2**
+*(«2016-05» → «Publicar estimación · ε = 1»)*
+Ahora publico mayo y el gasto llega a 2 de 2.
 
+**Paso 6 – Nueva consulta: presupuesto agotado, 409**
+*(Cambiar la fuente a «Programa de entrenamiento»)*
+El botón dice Presupuesto agotado. No se puede publicar nada nuevo, y si alguien se salta la pantalla, el servidor responde 409. Hay un límite porque cada publicación filtra un poco de información y eso se acumula. Si se pudiera publicar sin límite, alguien juntaría los resultados y llegaría al dato real.
+
+**Paso 7 – Auditoría**
 *(«Auditoría»)*
-En Auditoría queda registrado lo que pasa en el sistema. Aquí están las dos publicaciones, y aquí el intento de Diego de ver a Mateo, marcado como Denegado. El registro es de solo inserción, no se puede modificar, y no guarda mediciones ni contraseñas, solo quién hizo qué y cuándo.
-
-*(«Operaciones»)*
-Y en Operaciones el administrador asigna qué entrenador atiende a qué cliente, que es lo que decide quién puede ver a quién. También registra incidentes de seguridad y gestiona las copias de seguridad cifradas.
+Por último, la auditoría. Aquí están las dos publicaciones, y aquí el intento de Diego de ver a Mateo, marcado como Denegado. El registro es de solo inserción, no se puede modificar, y no guarda mediciones ni contraseñas, solo quién hizo qué y cuándo.
 
 **Cierre**
-*(Alt+Tab al PowerPoint → Conclusiones)*
+*(Alt+Tab al PowerPoint → diapositiva 15)*
 Eso es la demo. Cada rol ve solo lo que necesita, los datos de cada persona están cifrados y protegidos por permisos, y lo que se publica del grupo lleva ruido con un presupuesto limitado. Es una demostración académica local, no un piloto con clientes reales. Josué cierra con las conclusiones.
+
+**Si sobra tiempo**, antes del cierre: *(«Operaciones»)* En Operaciones el administrador asigna qué entrenador atiende a qué cliente, que es lo que decide quién puede ver a quién, y gestiona incidentes y copias de seguridad cifradas.
 
 **Si algo falla:** explicar el resultado esperado según las pruebas y el informe. No presentar capturas antiguas ni afirmar que se ejecutó un paso que no pudo mostrarse.
 
 ### Preguntas que responde Joel
 
-- **¿Por qué no publicar el número exacto?** Porque con números exactos se puede deducir a una persona, por ejemplo comparando el promedio con ella y sin ella. El ruido hace que el resultado sea casi igual esté o no esté.
-- **¿A cuántas personas promedian?** A las 33 del estudio Fitbit en abril de 2016. Cada persona cuenta una vez, con su propio promedio acotado a 0–120 minutos.
-- **¿Por qué solo 2?** Cada publicación filtra un poco y eso se suma. Con 2 cubrimos abril y mayo, los meses del estudio, y lo que se puede saber de cualquier persona queda acotado.
+- **¿Por qué no publicar el número exacto?** Porque comparando el promedio con una persona y sin ella se puede deducir su dato. El ruido hace que el resultado sea casi igual esté o no esté.
+- **¿A cuántas personas promedian?** A las 33 del estudio Fitbit en abril de 2016. Cada una cuenta una vez, con su promedio acotado a 0–120 minutos.
+- **¿Por qué solo 2?** Cada publicación filtra un poco y eso se suma. Con 2 cubrimos abril y mayo, los meses del estudio.
 - **¿Son 2 por año?** En la demo son 2 en total. Renovarlo por periodo sería una decisión de producción y la privacidad perdida se acumularía; no está implementado.
 - **¿Cómo evitan que alguien vea datos de otro?** El servidor revisa el rol y el titular de cada dato en cada petición. Lo vieron con el 403 de Mateo.
-- **¿Dónde se cifran los datos?** Cada medición se cifra con AES-256-GCM antes de guardarse, con datos asociados que la amarran a su tabla, titular, fecha y versión de clave.
+- **¿Qué se cifra?** Toda la medición, incluidos pulso, peso y grasa, con AES-256-GCM, amarrada a su tabla, titular, fecha y versión de clave.
+- **¿Y el modelo Gym?** Lo explicó Josué: usa ε = 0,1 y la exactitud pasa de 68,49 % a 66,21 %. No es parte de la app.
 
 
 ## Preguntas probables
